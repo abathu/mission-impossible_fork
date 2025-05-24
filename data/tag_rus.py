@@ -7,6 +7,7 @@ import stanza
 import argparse
 import os
 import tqdm
+from stanza.pipeline.core import DownloadMethod  # Add this near your imports
 
 
 def __get_constituency_parse(sent, nlp):
@@ -44,10 +45,13 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"No .txt files found in: {args.folder}")
 
     # Initialize Stanza pipeline
+
     nlp1 = stanza.Pipeline(
         lang=args.lang,
         processors='tokenize,pos,lemma',
         package="default_accurate",
+        dir=os.environ.get("STANZA_RESOURCES_DIR", None),
+        download_method=DownloadMethod.REUSE_RESOURCES,
         use_gpu=True)
 
     if args.parse:
@@ -56,6 +60,8 @@ if __name__ == "__main__":
                 lang=args.lang,
                 processors='tokenize,pos,constituency',
                 package="default_accurate",
+                dir=os.environ.get("STANZA_RESOURCES_DIR", None),
+                download_method=DownloadMethod.REUSE_RESOURCES,
                 use_gpu=True)
         except:
             print(
