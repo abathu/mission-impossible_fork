@@ -30,9 +30,9 @@ GENRES = {
     "switchboard": "Switchboard Dialog Act Corpus",
     "wikipedia": "Wikipedia"
 }
-CHECKPOINT_WRITE_PATH = "/nlp/scr3/nlp/llms-in-llms/babylm_models"
-CHECKPOINT_READ_PATH = "/nlp/scr3/nlp/llms-in-llms/babylm_models"
-BABYLM_DATA_PATH = "/nlp/scr3/nlp/llms-in-llms/babylm_data"
+CHECKPOINT_WRITE_PATH = "/work/tc067/tc067/s2678328/model_para/Rus"
+CHECKPOINT_READ_PATH = "/work/tc067/tc067/s2678328/model_para/Rus"
+BABYLM_DATA_PATH = "/work/tc067/tc067/s2678328/babyLM"
 MARKER_HOP_SING = "🅂"
 MARKER_HOP_PLUR = "🄿"
 MARKER_REV = "🅁"
@@ -550,7 +550,7 @@ PERTURBATIONS = {
         "affect_function": affect_hop,
         "filter_function": filter_hop,
         "gpt2_tokenizer": gpt2_hop_tokenizer,
-        "color": "#fa8128", 
+        "color": "#fa8128",
     },
     "hop_words4": {
         "perturbation_function": perturb_hop_words4,
