@@ -24,14 +24,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='Tag BabyLM dataset',
         description='Tag BabyLM dataset using Stanza')
-    parser.add_argument('path', type=argparse.FileType('r'),
-                        nargs='+', help="Path to file(s)")
+    parser.add_argument('folder', type=str,
+                        help="Path to folder containing .txt files")
     parser.add_argument('-p', '--parse', action='store_true',
                         help="Include constituency parse")
     parser.add_argument('-l', '--lang', type=str, default="ru",
                         help="Language to use for tagging (default: ru)")
 
     args = parser.parse_args()
+
+    # Get all .txt files in the folder and subfolders
+    file_paths = []
+    for root, _, files in os.walk(args.folder):
+        for name in files:
+            if name.endswith(".txt"):
+                file_paths.append(os.path.join(root, name))
+
+    if not file_paths:
+        raise FileNotFoundError(f"No .txt files found in: {args.folder}")
 
     # Initialize Stanza pipeline
     nlp1 = stanza.Pipeline(
@@ -54,9 +64,9 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 5000
 
-    for file in args.path:
-        print(file.name)
-        with file as f:
+    for path in sorted(file_paths):
+        print(path)
+        with open(path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
         print("Concatenating lines...")
@@ -105,7 +115,7 @@ if __name__ == "__main__":
 
         print("Writing JSON outfile...")
         ext = '_parsed.json' if args.parse else '.json'
-        json_filename = os.path.splitext(file.name)[0] + ext
+        json_filename = os.path.splitext(path)[0] + ext
         with open(json_filename, "w", encoding='utf-8') as outfile:
             json.dump(line_annotations, outfile, indent=4, ensure_ascii=False)
 
