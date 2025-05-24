@@ -29,7 +29,6 @@ mpmath
 nest-asyncio
 networkx
 nltk==3.8.1
-numpy==1.26.2
 packaging
 pandas==2.1.3
 parso
