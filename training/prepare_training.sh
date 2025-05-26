@@ -2,7 +2,7 @@
 # prepare_training.sh
 # author: Julie Kallini
 
-readonly MISTRAL_PATH=/mnt/lustre/e1000/home/tc067/tc067/s2678328/mistral
+readonly MISTRAL_PATH=/work/tc067/tc067/s2678328/mistral
 
 echo "
 -------------------------------------------------------------------------------
