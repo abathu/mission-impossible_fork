@@ -12,8 +12,11 @@ export STANZA_RESOURCES_DIR=/work/tc067/tc067/s2678328/stanza_resources
 
 cd /work/tc067/tc067/s2678328/mission-impossible/data
 
-python tag_rus.py /work/tc067/tc067/s2678328/babyLM/Russain/translated_file/Russain #/work/tc067/tc067/s2678328/babyLM/Russian/translated_file/Russian/
+srun python tag_rus.py /work/tc067/tc067/s2678328/babyLM/Russain/translated_file/Russain #/work/tc067/tc067/s2678328/babyLM/Russian/translated_file/Russian/
 #
 #python tag_rus.py /work/tc067/tc067/s2678328/babyLM/Russain/translated_file/Russian/
 
 #python tag_rus.py /work/tc067/tc067/s2678328/babyLM/Russain/translated_file/Russian/*/*.txt
+
+
+echo "done script run finnished  "

@@ -30,9 +30,9 @@ GENRES = {
     "switchboard": "Switchboard Dialog Act Corpus",
     "wikipedia": "Wikipedia"
 }
-CHECKPOINT_WRITE_PATH = "/work/tc067/tc067/s2678328/model_para/Rus"
-CHECKPOINT_READ_PATH = "/work/tc067/tc067/s2678328/model_para/Rus"
-BABYLM_DATA_PATH = "/work/tc067/tc067/s2678328/babyLM"
+CHECKPOINT_WRITE_PATH = "/work/tc067/tc067/s2678328/model_para/Rus/"
+CHECKPOINT_READ_PATH = "/work/tc067/tc067/s2678328/model_para/Rus/"
+BABYLM_DATA_PATH = "/mnt/lustre/e1000/home/tc067/tc067/s2678328/babyLM/Russian/"
 MARKER_HOP_SING = "🅂"
 MARKER_HOP_PLUR = "🄿"
 MARKER_REV = "🅁"
