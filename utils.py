@@ -30,9 +30,9 @@ GENRES = {
     "switchboard": "Switchboard Dialog Act Corpus",
     "wikipedia": "Wikipedia"
 }
-CHECKPOINT_WRITE_PATH = "/work/tc067/tc067/s2678328/model_para/Rus/"
-CHECKPOINT_READ_PATH = "/work/tc067/tc067/s2678328/model_para/Rus/"
-BABYLM_DATA_PATH = "/work/tc067/tc067/s2678328/babyLM/Russain/translated_file/Russain/"
+CHECKPOINT_WRITE_PATH = "/exports/eddie/scratch/s2678328/model_para"
+CHECKPOINT_READ_PATH = "/exports/eddie/scratch/s2678328/model_para"
+BABYLM_DATA_PATH = "/exports/eddie/scratch/s2678328/babyLM_data"
 MARKER_HOP_SING = "🅂"
 MARKER_HOP_PLUR = "🄿"
 MARKER_REV = "🅁"
@@ -45,6 +45,8 @@ PUNCT_TOKENS = set(punctuation)
 # PARENS MODELS (Structurally-pretrained)
 ##############################################################################
 
+
+# way to initialize parens models
 
 PAREN_MODEL_PATH = "/u/scr/isabelvp//tilt-stuff/tilt-finetuning/pretrained_checkpoints/"
 PAREN_MODELS = {
