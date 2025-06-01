@@ -83,7 +83,7 @@ if __name__ == "__main__":
                                package="default_accurate",
                                use_gpu=True)
 
-    BATCH_SIZE = 5000
+    BATCH_SIZE = 500
 
     # Iterate over BabyLM files
     for file in args.path:
