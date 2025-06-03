@@ -27,7 +27,7 @@ if __name__ == "__main__":
         lang='en',
         processors='tokenize',  # Only tokenizer
         package="default_accurate",
-        use_gpu=True
+        use_gpu=False
     )
 
     # Iterate over BabyLM files
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
         # Write annotations to file as a JSON
         print("Writing JSON outfile...")
-        ext = '_tokenized.json'
+        ext = '.json'
         json_filename = os.path.splitext(file.name)[0] + ext
         with open(json_filename, "w", encoding="utf-8") as outfile:
             json.dump(line_annotations, outfile, indent=4, ensure_ascii=False)

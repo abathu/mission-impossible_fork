@@ -43,7 +43,7 @@ def __get_constituency_parse(sent, nlp):
     # Try parsing the doc
     try:
         parse_doc = nlp(sent.text)
-    except:
+    except Exception:
         return None
 
     # Get set of constituency parse trees
@@ -67,11 +67,18 @@ if __name__ == "__main__":
     # Get args
     args = parser.parse_args()
 
+    # Init Stanza tokenizer
+    tokenizer = stanza.Pipeline(
+        lang='en',
+        processors='tokenize',
+        package="default_accurate",
+        use_gpu=False)
+
     # Init Stanza NLP tools
     nlp1 = stanza.Pipeline(
         lang='en',
         processors='tokenize,pos,lemma',
-        package="default_accurate",   # You can switch to "default_fast" for faster processing
+        package="default_accurate",  # You can switch to "default_fast" for faster processing
         use_gpu=True)
 
     # If constituency parse is needed, init second Stanza parser
@@ -82,9 +89,6 @@ if __name__ == "__main__":
             package="default_accurate",  # You can switch to "default_fast" for faster processing
             use_gpu=True)
 
-    # No batch processing anymore, line-by-line avoids token limit issues
-    # BATCH_SIZE = 500  -- no need now
-
     # Iterate over BabyLM files
     for file in args.path:
 
@@ -92,7 +96,7 @@ if __name__ == "__main__":
 
         # Efficiently count lines for tqdm progress bar
         file.seek(0, os.SEEK_END)
-        total_lines = file.tell()
+        total_bytes = file.tell()
         file.seek(0)
 
         # Iterate over lines in file and track annotations
@@ -104,46 +108,63 @@ if __name__ == "__main__":
             if not line:
                 continue  # skip empty lines
 
-            # Tokenize line with stanza
-            doc = nlp1(line)
+            # First split line into sentences
+            try:
+                split_doc = tokenizer(line)
+            except Exception as e:
+                print(f"⚠️ Tokenizer failed on line. Skipping. Error: {e}")
+                print(f"at line: {line}")
+                raise EOFError
 
-            # Track annotations for this line
-            sent_annotations = []
-            for sent in doc.sentences:
-                # Track annotations for each word
-                word_annotations = []
-                for token, word in zip(sent.tokens, sent.words):
-                    wa = {
-                        'id': word.id,
-                        'text': word.text,
-                        'lemma': word.lemma,
-                        'upos': word.upos,
-                        'xpos': word.xpos,
-                        'feats': word.feats,
-                        'start_char': token.start_char,
-                        'end_char': token.end_char
-                    }
-                    word_annotations.append(wa)
+            for sentence in split_doc.sentences:
+                sent_text = sentence.text.strip()
+                if not sent_text:
+                    continue  # Skip empty sentence
 
-                # Add constituency parse if needed
-                if args.parse:
-                    constituency_parse = __get_constituency_parse(sent, nlp2)
-                    sa = {
-                        'sent_text': sent.text,
-                        'constituency_parse': constituency_parse,
-                        'word_annotations': word_annotations,
-                    }
-                else:
-                    sa = {
-                        'sent_text': sent.text,
-                        'word_annotations': word_annotations,
-                    }
-                sent_annotations.append(sa)
+                try:
+                    doc = nlp1(sent_text)
+                except Exception as e:
+                    print(f"⚠️ NLP failed on sentence. Skipping. Error: {e}")
+                    print(f"at line: {line}")
+                    raise EOFError
 
-            la = {
-                'sent_annotations': sent_annotations
-            }
-            line_annotations.append(la)
+                # Track annotations for this sentence
+                sent_annotations = []
+                for sent in doc.sentences:
+                    # Track annotations for each word
+                    word_annotations = []
+                    for token, word in zip(sent.tokens, sent.words):
+                        wa = {
+                            'id': word.id,
+                            'text': word.text,
+                            'lemma': word.lemma,
+                            'upos': word.upos,
+                            'xpos': word.xpos,
+                            'feats': word.feats,
+                            'start_char': token.start_char,
+                            'end_char': token.end_char
+                        }
+                        word_annotations.append(wa)
+
+                    # Add constituency parse if needed
+                    if args.parse:
+                        constituency_parse = __get_constituency_parse(sent, nlp2)
+                        sa = {
+                            'sent_text': sent.text,
+                            'constituency_parse': constituency_parse,
+                            'word_annotations': word_annotations,
+                        }
+                    else:
+                        sa = {
+                            'sent_text': sent.text,
+                            'word_annotations': word_annotations,
+                        }
+                    sent_annotations.append(sa)
+
+                la = {
+                    'sent_annotations': sent_annotations
+                }
+                line_annotations.append(la)
 
         # Write annotations to file as a JSON
         print("Writing JSON outfile...")
