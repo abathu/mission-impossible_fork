@@ -13,13 +13,16 @@ logger = datasets.logging.get_logger(__name__)
 _DESCRIPTION = """\
     Pre-tokenized BabyLM HuggingFace dataset for verb perturbations.
 """
-_PERTURBED_DATA_PATH = "/nlp/scr3/nlp/llms-in-llms/babylm_data/babylm_data_perturbed"
+_PERTURBED_DATA_PATH = "/home/s2678328/BabyLM_dataset/processed_by_me/babyLM_data/babylm_data_perturbed/babylm_lemma_shuffle_control"
 _PERTURBATIONS = ["hop_control", "hop_tokens4", "hop_words4",
                   "reverse_control", "reverse_partial", "reverse_full",
                   "shuffle_control", "shuffle_nondeterministic",
                   "shuffle_deterministic21", "shuffle_deterministic57", "shuffle_deterministic84",
                   "shuffle_local3", "shuffle_local5", "shuffle_local10",
-                  "shuffle_even_odd"]
+                  "shuffle_even_odd",
+                  "lemma_shuffle_nondeterministic","lemma_shuffle_deterministic21","lemma_shuffle_control",
+                  "lemma_en_shuffle_deterministic21","lemma_en_shuffle_nondeterministic",
+                  "lemma_en_shuffle_control"]
 _RANDOM_SEEDS = [0, 14, 41, 53, 96]
 _TRAIN_SETS = ["100M", "10M"]
 _EOS_TOKEN_ID = 50256
@@ -82,14 +85,25 @@ class BabyLMCorpus(datasets.GeneratorBasedBuilder):
                     self.config.data_dir, "babylm_dev"), "random_seed": self.config.random_seed, "split": "valid"},
             )
         ]
-
+    
     def __chunk(self, sentences, eos_token):
-
         # Tokenize each sentence
         logger.info("Loading pre-tokenized data")
         tokenized_sentences = []
         for sent in tqdm.tqdm(sentences):
-            tokenized_sentences.append([int(tok) for tok in sent.split()])
+            stripped = sent.strip()
+            if not stripped:
+                continue  # Skip empty lines
+            try:
+                tokens = [int(tok) for tok in stripped.split() if tok.strip().isdigit()]
+            except ValueError:
+                continue  # Skip lines with non-integer tokens (unexpected format)
+            if tokens:
+                tokenized_sentences.append(tokens)
+
+        if not tokenized_sentences:
+            logger.warning("No valid tokenized sentences found.")
+            return []
 
         # Concatenate the tokenized sentences using the EOS token
         logger.info("Concatenating tokenized data using EOS token")
@@ -103,13 +117,39 @@ class BabyLMCorpus(datasets.GeneratorBasedBuilder):
         max_seq_len = 1024
         chunked_tokens = []
         for i in tqdm.tqdm(range(0, len(all_tokens), max_seq_len)):
-            chunked_tokens.append(all_tokens[i:i + max_seq_len])
-
-        # Drop last line if not a multiple of max_seq_len
-        if len(chunked_tokens[-1]) < max_seq_len:
-            chunked_tokens.pop()
+            chunk = all_tokens[i:i + max_seq_len]
+            if len(chunk) == max_seq_len:
+                chunked_tokens.append(chunk)
 
         return chunked_tokens
+
+    # def __chunk(self, sentences, eos_token):
+
+    #     # Tokenize each sentence
+    #     logger.info("Loading pre-tokenized data")
+    #     tokenized_sentences = []
+    #     for sent in tqdm.tqdm(sentences):
+    #         tokenized_sentences.append([int(tok) for tok in sent.split()])
+
+    #     # Concatenate the tokenized sentences using the EOS token
+    #     logger.info("Concatenating tokenized data using EOS token")
+    #     all_tokens = []
+    #     for tokens in tqdm.tqdm(tokenized_sentences):
+    #         all_tokens.extend(tokens)
+    #         all_tokens.append(eos_token)
+
+    #     # Chunk the tokens into sublists of max_seq_len tokens each
+    #     logger.info("Chunking tokens into sublists of 1024")
+    #     max_seq_len = 1024
+    #     chunked_tokens = []
+    #     for i in tqdm.tqdm(range(0, len(all_tokens), max_seq_len)):
+    #         chunked_tokens.append(all_tokens[i:i + max_seq_len])
+
+    #     # Drop last line if not a multiple of max_seq_len
+    #     if len(chunked_tokens[-1]) < max_seq_len:
+    #         chunked_tokens.pop()
+
+    #     return chunked_tokens
 
     def _generate_examples(self, data_dir, random_seed, split):
         """This function returns the BabyLM text in the discretized, tokenized form."""

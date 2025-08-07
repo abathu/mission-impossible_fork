@@ -1,7 +1,6 @@
 # tag.py
-# Author: Julie Kallini
+# Author: Julie Kallini (modified for streaming batch-safe writing)
 
-# For importing utils
 import sys
 sys.path.append("..")
 
@@ -12,6 +11,7 @@ import os
 import argparse
 import stanza
 import json
+import gc
 
 
 test_all_files = sorted(glob.glob("babylm_data/babylm_*/*"))
@@ -22,41 +22,25 @@ test_cases = list(zip(test_original_files, test_json_files))
 
 @pytest.mark.parametrize("original_file, json_file", test_cases)
 def test_equivalent_lines(original_file, json_file):
-
-    # Read lines of file and remove all whitespace
-    original_file = open(original_file)
-    original_data = "".join(original_file.readlines())
-    original_data = "".join(original_data.split())
-
-    json_file = open(json_file)
-    json_lines = json.load(json_file)
-    json_data = ""
-    for line in json_lines:
-        for sent in line["sent_annotations"]:
-            json_data += sent["sent_text"]
+    original_data = "".join(open(original_file).readlines()).replace(" ", "").replace("\n", "")
+    json_lines = json.load(open(json_file))
+    json_data = "".join(sent["sent_text"] for line in json_lines for sent in line["sent_annotations"])
     json_data = "".join(json_data.split())
-
-    # Test equivalence
     assert (original_data == json_data)
 
 
 def __get_constituency_parse(sent, nlp):
-
-    # Try parsing the doc
     try:
         parse_doc = nlp(sent.text)
+        parse_trees = [str(s.constituency) for s in parse_doc.sentences]
+        return "(ROOT " + " ".join(parse_trees) + ")"
     except:
         return None
-    
-    # Get set of constituency parse trees
-    parse_trees = [str(sent.constituency) for sent in parse_doc.sentences]
-
-    # Join parse trees and add ROOT
-    constituency_parse = "(ROOT " + " ".join(parse_trees) + ")"
-    return constituency_parse
 
 
 if __name__ == "__main__":
+
+    print("\n\n\nThis is the Lemma version tagging, if the normal version, modify the sa part to back  \n\n\n")
 
     parser = argparse.ArgumentParser(
         prog='Tag BabyLM dataset',
@@ -66,87 +50,185 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--parse', action='store_true',
                         help="Include constituency parse")
 
-    # Get args
     args = parser.parse_args()
 
-    # Init Stanza NLP tools
+    # nlp1 = stanza.Pipeline(
+    #     lang=  'zh-hans', #'zh',
+    #     processors='tokenize,pos,lemma',
+    #     package="default_accurate",
+    #    dir='/home/s2678328/.cache/my_stanza/my_stanza',
+    #     use_gpu=True
+    # )
+
     nlp1 = stanza.Pipeline(
-        lang='en',
-        processors='tokenize, pos, lemma',
-        package="default_accurate",
-        use_gpu=True)
+    lang='en',
+    processors='tokenize,pos,lemma',
+    package=None,  # Let it use what's locally available
+    dir='/home/s2678328/.cache/en_stanza/en_stanza',
+    use_gpu=True,
+    allow_download=False  # Optional: prevent fallback to HuggingFace
+)
 
-    # If constituency parse is needed, init second Stanza parser
+
+    nlp_cpu = stanza.Pipeline(
+        lang= 'en',  # 'zh',
+        processors='tokenize,pos,lemma',
+        package=None, #"default_accurate",
+        dir='/home/s2678328/.cache/en_stanza/en_stanza',
+        use_gpu=False
+    )
+
     if args.parse:
-        nlp2 = stanza.Pipeline(lang='en',
-                               processors='tokenize,pos,constituency',
-                               package="default_accurate",
-                               use_gpu=True)
+        print("[Warning] Constituency parsing is not supported for Russian. Disabling.")
+        args.parse = False
 
-    BATCH_SIZE = 5000
+    BATCH_SIZE = 2000
 
-    # Iterate over BabyLM files
     for file in args.path:
+        print(f"Processing: {file.name}")
+        lines = [l.strip() for l in file.readlines()]
+        line_batches = [lines[i:i + BATCH_SIZE] for i in range(0, len(lines), BATCH_SIZE)]
+        text_batches = [" ".join(batch) for batch in line_batches]
 
-        print(file.name)
-        lines = file.readlines()
-
-        # Strip lines and join text
-        print("Concatenating lines...")
-        lines = [l.strip() for l in lines]
-        line_batches = [lines[i:i + BATCH_SIZE]
-                        for i in range(0, len(lines), BATCH_SIZE)]
-        text_batches = [" ".join(l) for l in line_batches]
-
-        # Iterate over lines in file and track annotations
-        line_annotations = []
-        print("Segmenting and parsing text batches...")
-        for text in tqdm.tqdm(text_batches):
-            # Tokenize text with stanza
-            doc = nlp1(text)
-
-            # Iterate over sents in the line and track annotations
-            sent_annotations = []
-            for sent in doc.sentences:
-
-                # Iterate over words in sent and track annotations
-                word_annotations = []
-                for token, word in zip(sent.tokens, sent.words):
-                    wa = {
-                        'id': word.id,
-                        'text': word.text,
-                        'lemma': word.lemma,
-                        'upos': word.upos,
-                        'xpos': word.xpos,
-                        'feats': word.feats,
-                        'start_char': token.start_char,
-                        'end_char': token.end_char
-                    }
-                    word_annotations.append(wa)  # Track word annotation
-
-                # Get constituency parse if needed
-                if args.parse:
-                    constituency_parse = __get_constituency_parse(sent, nlp2)
-                    sa = {
-                        'sent_text': sent.text,
-                        'constituency_parse': constituency_parse,
-                        'word_annotations': word_annotations,
-                    }
-                else:
-                    sa = {
-                        'sent_text': sent.text,
-                        'word_annotations': word_annotations,
-                    }
-                sent_annotations.append(sa)  # Track sent annotation
-
-            la = {
-                'sent_annotations': sent_annotations
-            }
-            line_annotations.append(la)  # Track line annotation
-
-        # Write annotations to file as a JSON
-        print("Writing JSON outfile...")
         ext = '_parsed.json' if args.parse else '.json'
         json_filename = os.path.splitext(file.name)[0] + ext
+        print(f"Writing to: {json_filename}")
+
         with open(json_filename, "w") as outfile:
-            json.dump(line_annotations, outfile, indent=4)
+            outfile.write("[\n")
+
+            for i, text in enumerate(tqdm.tqdm(text_batches)):
+                try:
+                    doc = nlp1(text)
+                except RuntimeError as e:
+                    if 'CUDNN_STATUS_NOT_SUPPORTED' in str(e):
+                        print(f"[Warning] CuDNN crash on batch {i} – retrying on CPU.")
+                        doc = nlp_cpu(text)
+                    else:
+                        raise e
+
+                sent_annotations = []
+
+                for sent in doc.sentences:
+                    word_annotations = []
+                    for token, word in zip(sent.tokens, sent.words):
+                        wa = {
+                            'id': word.id,
+                            'text': word.text,
+                            'lemma': word.lemma,
+                            'upos': word.upos,
+                            'xpos': word.xpos,
+                            'feats': word.feats,
+                            'start_char': token.start_char,
+                            'end_char': token.end_char
+                        }
+                        word_annotations.append(wa)
+
+                    sa = {
+                        # 'sent_text': sent.text,
+                        'sent_text':" ".join([word.lemma for word in sent.words if word.lemma is not None]),
+
+                        'word_annotations': word_annotations
+                    }
+
+                    if args.parse:
+                        sa['constituency_parse'] = __get_constituency_parse(sent, nlp_cpu)
+
+                    sent_annotations.append(sa)
+
+                la = {'sent_annotations': sent_annotations}
+                json.dump(la, outfile, indent=4)
+
+                if i < len(text_batches) - 1:
+                    outfile.write(",\n")
+                else:
+                    outfile.write("\n")
+
+                del doc, sent_annotations, la
+                gc.collect()
+
+            outfile.write("]\n")
+
+# if __name__ == "__main__":
+
+#     parser = argparse.ArgumentParser(
+#         prog='Tag BabyLM dataset',
+#         description='Tag BabyLM dataset using Stanza')
+#     parser.add_argument('path', type=argparse.FileType('r'),
+#                         nargs='+', help="Path to file(s)")
+#     parser.add_argument('-p', '--parse', action='store_true',
+#                         help="Include constituency parse")
+
+#     args = parser.parse_args()
+
+#     nlp1 = stanza.Pipeline(
+#         lang='ru',
+#         processors='tokenize,pos,lemma',
+#         package="default_accurate",
+#         dir='/home/s2678328/.cache/my_stanza',
+#         use_gpu=True
+#     )
+
+#     nlp2 = None
+#     if args.parse:
+#         print("[Warning] Constituency parsing is not supported for Russian. Disabling.")
+#         args.parse = False
+
+#     BATCH_SIZE = 2000
+
+#     for file in args.path:
+#         print(f"Processing: {file.name}")
+#         lines = [l.strip() for l in file.readlines()]
+#         line_batches = [lines[i:i + BATCH_SIZE] for i in range(0, len(lines), BATCH_SIZE)]
+#         text_batches = [" ".join(batch) for batch in line_batches]
+
+#         ext = '_parsed.json' if args.parse else '.json'
+#         json_filename = os.path.splitext(file.name)[0] + ext
+#         print(f"Writing to: {json_filename}")
+
+#         with open(json_filename, "w") as outfile:
+#             outfile.write("[\n")
+
+#             for i, text in enumerate(tqdm.tqdm(text_batches)):
+#                 doc = nlp1(text)
+#                 sent_annotations = []
+
+#                 for sent in doc.sentences:
+#                     word_annotations = []
+#                     for token, word in zip(sent.tokens, sent.words):
+#                         wa = {
+#                             'id': word.id,
+#                             'text': word.text,
+#                             'lemma': word.lemma,
+#                             'upos': word.upos,
+#                             'xpos': word.xpos,
+#                             'feats': word.feats,
+#                             'start_char': token.start_char,
+#                             'end_char': token.end_char
+#                         }
+#                         word_annotations.append(wa)
+
+#                     sa = {
+#                         'sent_text': sent.text,
+#                         'word_annotations': word_annotations
+#                     }
+
+#                     if args.parse:
+#                         sa['constituency_parse'] = __get_constituency_parse(sent, nlp2)
+
+#                     sent_annotations.append(sa)
+
+#                 # write each line annotation (1 per batch)
+#                 la = {'sent_annotations': sent_annotations}
+#                 json.dump(la, outfile, indent=4)
+
+#                 if i < len(text_batches) - 1:
+#                     outfile.write(",\n")
+#                 else:
+#                     outfile.write("\n")
+
+#                 # Clean memory after each batch
+#                 del doc, sent_annotations, la
+#                 gc.collect()
+
+#             outfile.write("]\n")

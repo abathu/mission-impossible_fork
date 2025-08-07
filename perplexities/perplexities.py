@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     # Get perturbed test files
     test_files = sorted(glob(
-        f"{BABYLM_DATA_PATH}/babylm_data_perturbed/babylm_{args.test_perturbation_type}/babylm_test_affected/*"))
+        f"{BABYLM_DATA_PATH}/babylm_data_perturbed/babylm_{args.test_perturbation_type}/babylm_dev/*"))
 
     FILE_SAMPLE_SIZE = 1000
     rng = default_rng(args.random_seed)
@@ -146,7 +146,8 @@ if __name__ == "__main__":
         "Sentences": test_sents
     })
 
-    BATCH_SIZE = 8
+
+    BATCH_SIZE = 6
     device = "cuda"
     for ckpt in CHECKPOINTS:
         print(f"Checkpoint: {ckpt}")
@@ -166,6 +167,8 @@ if __name__ == "__main__":
             ppls = get_perplexities(
                 model, batch, gpt2_original_tokenizer.eos_token_id)
             perplexities.extend(ppls)
+
+            del model
 
         # Add ppls to df
         ppl_df[f'Perplexities (ckpt {ckpt})'] = perplexities

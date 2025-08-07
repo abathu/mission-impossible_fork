@@ -2,7 +2,11 @@
 # prepare_training.sh
 # author: Julie Kallini
 
-readonly MISTRAL_PATH=/nlp/scr/kallini/mistral
+readonly MISTRAL_PATH=/home/s2678328/mistral
+
+
+# shuffle_deterministic21 
+
 
 echo "
 -------------------------------------------------------------------------------

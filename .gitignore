@@ -5,6 +5,8 @@ edge_probing/constituency_parses_OLD/*
 
 # Log files
 kallini-job-*.out
+./logs/*
+logs/
 
 # Models
 models/
